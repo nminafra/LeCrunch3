@@ -105,8 +105,8 @@ def fetchAndSaveFast(filename, nevents, nsequence, ip, timeout=1000):
                         f['c%i_vert_scale'%channel][i+n] = wave_desc['vertical_gain']
                         f['c%i_horiz_offset'%channel][i+n] = wave_desc['horiz_offset']
                         f['c%i_horiz_scale'%channel][i+n] = wave_desc['horiz_interval']
-                        f['c%i_trig_offset'%channel][i+n] = t[n]
-                        f['c%i_trig_time'%channel][i+n] = t[n]
+                        f['c%i_trig_offset'%channel][i+n] = trg_offsets[n]
+                        f['c%i_trig_time'%channel][i+n] = trg_times[n]
                     
             except Exception as e:
                 print('Error\n' + str(e))
