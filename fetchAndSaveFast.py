@@ -67,7 +67,7 @@ def fetchAndSaveFast(filename, nevents, nsequence, ip, timeout=1000):
     for channel in channels:
         wave_desc = scope.get_wavedesc(channel)
         current_dim[channel] = wave_desc['wave_array_count']//sequence_count
-        f.create_dataset(f'c{channel}_samples', (nevents,current_dim[channel]), dtype=wave_desc['dtype'], compression='gzip', maxshape=(nevents,None))
+        f.create_dataset(f'c{channel}_samples', (nevents,current_dim[channel]), dtype=wave_desc['dtype'], maxshape=(nevents,None))
         ## Save attributes in the file
         for key, value in wave_desc.items():
             try:
