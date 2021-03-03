@@ -11,14 +11,8 @@ import matplotlib.pyplot as plt
 import h5py
 
 f = h5py.File('testfile.h5', 'r')
-fig, axes = plt.subplots(2,2, figsize=(50,20))
-axes = axes.flatten()
-for ch in range(1,5):
-    numOfSegments = f[f'c{ch}_time'].shape[0]
-    for i in range(numOfSegments):
-        numOfSamples = f[f'c{ch}_time'][i].shape[0]
-        v = f[f'c{ch}_samples'][i]
-        t = f[f'c{ch}_time'][i]
-        
-        axes[ch-1].plot(t*1e9,v)
-        axes[ch-1].set_title(f"Channel {ch}")
+numOfSegments = f[f'c1_time'].shape[0]
+for i in range(numOfSegments):
+    plt.plot(f[f'c1_time'][i], f[f'c1_samples'][i])
+    
+And more importantly, the acquisition of trigger times and offset
