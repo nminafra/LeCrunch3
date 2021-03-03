@@ -78,6 +78,9 @@ def fetchAndSaveFast(filename, nevents, nsequence, ip, timeout=1000):
         f.create_dataset("c%i_vert_scale"%channel, (nevents,), dtype='f8')
         f.create_dataset("c%i_horiz_offset"%channel, (nevents,), dtype='f8')
         f.create_dataset("c%i_horiz_scale"%channel, (nevents,), dtype='f8')
+        f.create_dataset("c%i_trig_offset"%channel, (nevents,), dtype='f8')
+        f.create_dataset("c%i_trig_time"%channel, (nevents,), dtype='f8')
+        
 
     try:
         i = 0
@@ -87,7 +90,7 @@ def fetchAndSaveFast(filename, nevents, nsequence, ip, timeout=1000):
             try:
                 scope.trigger()
                 for channel in channels:
-                    wave_desc,wave_array = scope.get_waveform(channel)
+                    wave_desc, trg_times, trg_offsets, wave_array = scope.get_waveform_all(channel)
                     num_samples = wave_desc['wave_array_count']//sequence_count
                     if current_dim[channel] < num_samples:
                         current_dim[channel] = num_samples
@@ -102,8 +105,10 @@ def fetchAndSaveFast(filename, nevents, nsequence, ip, timeout=1000):
                         f['c%i_vert_scale'%channel][i+n] = wave_desc['vertical_gain']
                         f['c%i_horiz_offset'%channel][i+n] = wave_desc['horiz_offset']
                         f['c%i_horiz_scale'%channel][i+n] = wave_desc['horiz_interval']
+                        f['c%i_trig_offset'%channel][i+n] = t[n]
+                        f['c%i_trig_time'%channel][i+n] = t[n]
                     
-            except (socket.error, struct.error) as e:
+            except Exception as e:
                 print('Error\n' + str(e))
                 scope.clear()
                 continue
@@ -122,7 +127,7 @@ if __name__ == '__main__':
     usage = "usage: %prog <filename/prefix> [-n] [-s]"
     parser = optparse.OptionParser(usage, version="%prog 0.1.0")
     parser.add_option("-i", type="str", dest="ip",
-                      help="IP address of the scope", default="127.0.0.0")
+                      help="IP address of the scope", default="127.0.0.1")
     parser.add_option("-n", type="int", dest="nevents",
                       help="number of events to capture in total", default=1000)
     parser.add_option("-s", type="int", dest="nsequence",

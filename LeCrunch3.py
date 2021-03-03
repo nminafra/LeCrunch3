@@ -144,7 +144,7 @@ wavedesc_template = ( ('descriptor_name'    , 0   , String),
                       ('vertical_vernier'   , 336 , Float),
                       ('acq_vert_offset'    , 340 , Float),
                       ('wave_source'        , 344 , Enum) )
-                      
+
 headerformat = '>BBBBL'
 
 errors = { 1  : 'unrecognized command/query header',
@@ -246,7 +246,6 @@ class LeCrunch3(object):
         Sends a `settings` dict of Command->Setting to the scope.
         '''
         for command, setting in settings.items():
-            print('sending %s' % command)
             self.send(setting)
             self.check_last_command()
 
@@ -277,26 +276,17 @@ class LeCrunch3(object):
         else:
             self.send('seq on,%i'%nsequence)
 
-    def get_wavedesc(self, channel):
+    def get_wavedesc_frombuffer(self, msg):
         '''
-        Requests the wave descriptor for `channel` from the scope. Returns it in
-        dictionary format.
+        Interpret wavedescription data
         '''
-        if channel not in range(1, 5):
-            raise Exception('channel must be in %s.' % str(range(1, 5)))
-
-        self.send('c%s:wf? desc' % str(channel))
-
-        msg = self.recv()
-        # print(msg)
-        # for i in range(40):
-        #     print(i, ": ", chr(msg[i]))
-        if not int(chr(msg[1])) == channel:
-            raise RuntimeError('waveforms out of sync or comm_header is off.')
-
         data = io.BytesIO(msg)
-        startpos = re.search(b'WAVEDESC', data.read()).start()
-
+        searchResult = re.search(b'WAVEDESC', data.read())
+        if searchResult is not None:
+            startpos = searchResult.start()
+        else:
+            startpos = 22
+        
         wavedesc = {}
         
         # check endian
@@ -328,7 +318,58 @@ class LeCrunch3(object):
             wavedesc['dtype'] = np.int16()
         else:
             raise Exception('unknown comm_type.')
-        return wavedesc
+
+        return wavedesc, data.tell()
+
+    
+    def get_wavedesc(self, channel):
+        '''
+        Requests the wave descriptor for `channel` from the scope. Returns it in
+        dictionary format.
+        '''
+        if channel not in range(1, 5):
+            raise Exception('channel must be in %s.' % str(range(1, 5)))
+
+        self.send('c%s:wf? desc' % str(channel))
+        msg = self.recv()
+        descr, _ = self.get_wavedesc_frombuffer(msg)
+        return descr
+
+    def get_waveform_all(self, channel):
+        if channel not in range(1, 5):
+            raise Exception('channel must be in %s.' % str(range(1, 5)))
+
+        self.send('c%s:wf? all' % str(channel))
+
+        msg = self.recv()
+
+        if not int(chr(msg[1])) == channel:
+            raise RuntimeError('waveforms out of sync or comm_header is off.')
+
+        wavedesc, offset = self.get_wavedesc_frombuffer(msg)
+        data = io.BytesIO(msg)
+        data.seek(offset)
+
+        # Read trigger data
+        trigger_bytes = wavedesc['trigtime_array']
+        typeSize = np.dtype('f8').itemsize
+        trigger_count = trigger_bytes//typeSize//2
+        trigger_times = np.zeros(trigger_count, 'f8')
+        trigger_offsets = np.zeros(trigger_count, 'f8')
+        for i in range(trigger_count):
+            trigger_times[i] = np.frombuffer(data.read(typeSize), 'f8', 1)
+            trigger_offsets[i] = np.frombuffer(data.read(typeSize), 'f8', 1)
+        
+        # Read waveform
+        # TODO: implement dat2 concat
+        wave_array_count = wavedesc['wave_array_1']
+        if wavedesc['wave_array_2'] != 0:
+            print(f'WARNING: waveform too long, ignoring {wavedesc["wave_array_2"]} samples!')
+
+        waveform = np.frombuffer(data.read(wave_array_count*(wavedesc['dtype'].itemsize)), wavedesc['dtype'], wave_array_count)
+
+        return (wavedesc, trigger_times, trigger_offsets, waveform)
+
 
     def get_waveform(self, channel):
         '''
@@ -342,5 +383,7 @@ class LeCrunch3(object):
         msg = self.recv()
         if not int(chr(msg[1])) == channel:
             raise RuntimeError('waveforms out of sync or comm_header is off.')
+
         wavedesc = self.get_wavedesc(channel)
-        return (wavedesc, np.fromstring(msg[22:], wavedesc['dtype'], wavedesc['wave_array_count']))
+
+        return (wavedesc, np.frombuffer(msg[22:], wavedesc['dtype'], wavedesc['wave_array_1']))

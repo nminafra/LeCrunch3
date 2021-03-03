@@ -34,20 +34,19 @@ import socket
 import numpy as np
 from LeCrunch3 import LeCrunch3
 
-def measure(nevents, ip, timeout=1000):
+def measure(nevents, nsequence, ip, timeout=1000):
     '''
     Fetch and save waveform traces from the oscilloscope.
     '''
-    print(ip)
     scope = LeCrunch3(ip, timeout=timeout)
     scope.clear()
-    scope.set_sequence_mode(nevents)
+    scope.set_sequence_mode(nsequence)
     channels = scope.get_channels()
     settings = scope.get_settings()
 
     minimum = {}
     maximum = {}
-    triggerTimes = []
+    rate = {}
 
     if b'ON' in settings['SEQUENCE']:
         sequence_count = int(settings['SEQUENCE'].split(b',')[1])
@@ -55,7 +54,7 @@ def measure(nevents, ip, timeout=1000):
         sequence_count = 1
     print(sequence_count)
         
-    if nevents != sequence_count:
+    if nsequence != sequence_count:
         print('Could not configure sequence mode properly')
     if sequence_count != 1:
         print(f'Using sequence mode with {sequence_count} traces per aquisition')
@@ -70,6 +69,7 @@ def measure(nevents, ip, timeout=1000):
         # Add here all measurements you want...
         minimum[channel] = []
         maximum[channel] = []
+        rate[channel] = []
 
     try:
         i = 0
@@ -79,12 +79,9 @@ def measure(nevents, ip, timeout=1000):
             try:
                 scope.trigger()
                 for channel in channels:
-                    wave_desc,wave_array = scope.get_waveform(channel)
+                    wave_desc, trg_times, trg_offsets, wave_array = scope.get_waveform_all(channel)
                     num_samples = wave_desc['wave_array_count']//sequence_count
-
-                    # Get trigger times (only once)
-                    # if len(triggerTimes) < 1:
-                    #     triggerTimes = wave_desc['wathever']
+                    rate[channel].append(float(sequence_count)/wave_desc['acq_duration'])
 
                     if current_dim[channel] < num_samples:
                         current_dim[channel] = num_samples
@@ -97,6 +94,7 @@ def measure(nevents, ip, timeout=1000):
                         # Add here all measurements you want...
                         minimum[channel].append( np.min(-wave_desc['vertical_offset'] + scratch*wave_desc['vertical_gain']) )
                         maximum[channel].append( np.max(-wave_desc['vertical_offset'] + scratch*wave_desc['vertical_gain']) )
+                    rate[channel].append( np.mean(np.diff(trg_times)) )
                     
             except (socket.error, struct.error) as e:
                 print('Error\n' + str(e))
@@ -110,13 +108,20 @@ def measure(nevents, ip, timeout=1000):
         scope.clear()
 
         for channel in channels:
-            print(f'Avg maximum for ch {channel}: {np.mean(maximum[channel])} V')
-            print(f'Avg minimum for ch {channel}: {np.mean(minimum[channel])} V')
-        
-        triggerRate = np.mean(np.diff(triggerTimes))
-        print(f'Avg trigger rate: {triggerRate} Hz')
+            if len(maximum[channel])>1:
+                print(f'Channel {channel}:')
+                print(f'\tAvg maximum: {np.mean(maximum[channel]):.3f} V')
+                print(f'\tAvg minimum: {np.mean(minimum[channel]):.3f} V')
+                print(f'\tAvg rate: {np.mean(rate[channel]):.3e} Hz')
+                print('')
+            else:
+                print(f'Channel {channel}:')
+                print(f'\tAvg maximum: {maximum[channel][0]:.3f} V')
+                print(f'\tAvg minimum: {minimum[channel][0]:.3f} V')
+                print(f'\tAvg rate: {rate[channel][0]:.3e} Hz')
+                print('')
 
-        return triggerRate
+        return i
 
 if __name__ == '__main__':
     import optparse
@@ -124,17 +129,19 @@ if __name__ == '__main__':
     usage = "usage: %prog [-n]"
     parser = optparse.OptionParser(usage, version="%prog 0.1.0")
     parser.add_option("-i", type="str", dest="ip",
-                      help="IP address of the scope", default="127.0.0.0")
+                      help="IP address of the scope", default="127.0.0.1")
     parser.add_option("-n", type="int", dest="nevents",
                       help="number of events to capture in total", default=0)
+    parser.add_option("-s", type="int", dest="nsequence",
+                      help="number of sequential events to capture at a time", default=1)
     (options, args) = parser.parse_args()
 
     
-    if options.nevents < 1:
+    if options.nevents < 1 or options.nsequence < 1:
         sys.exit("Arguments to -s or -n must be positive")
 
     start = time.time()
-    count = measure(options.nevents, options.ip)
+    count = measure(options.nevents, options.nsequence, options.ip)
     elapsed = time.time() - start
     if count > 0:
         print(f'Completed {count} events in {elapsed:.3f} seconds.')

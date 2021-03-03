@@ -74,6 +74,7 @@ def fetchAndSaveSimple(filename, nevents, nsequence, ip, timeout=1000):
                 f["c%i_samples"%channel].attrs[key] = value
             except ValueError:
                 pass
+        f.create_dataset("c%i_trig_time"%channel, (nevents,), dtype='f8')
 
     try:
         i = 0
@@ -83,8 +84,9 @@ def fetchAndSaveSimple(filename, nevents, nsequence, ip, timeout=1000):
             try:
                 scope.trigger()
                 for channel in channels:
-                    wave_desc,wave_array = scope.get_waveform(channel)
+                    wave_desc, trg_times, trg_offsets, wave_array = scope.get_waveform_all(channel)
                     num_samples = wave_desc['wave_array_count']//sequence_count
+                    
                     if current_dim[channel] < num_samples:
                         current_dim[channel] = num_samples
                         f[f'c{channel}_samples'].resize(current_dim[channel],1)
@@ -93,10 +95,11 @@ def fetchAndSaveSimple(filename, nevents, nsequence, ip, timeout=1000):
                     scratch = np.zeros((current_dim[channel],),dtype=wave_array.dtype)
                     for n in range(0,sequence_count):
                         scratch[0:num_samples] = traces[n] 
-                        f[f'c{channel}_samples'][i+n] = -wave_desc['vertical_offset'] + scratch*wave_desc['vertical_gain']
-                        f[f'c{channel}_time'][i+n] = np.linspace(wave_desc['horiz_offset'],wave_desc['horiz_interval']*(num_samples-1)-wave_desc['horiz_offset'],num_samples)
+                        f[f'c{channel}_samples'][i+n] = -wave_desc['vertical_offset'] + wave_desc['vertical_gain']*scratch
+                        f[f'c{channel}_time'][i+n] = np.linspace(trg_offsets[n],wave_desc['horiz_interval']*(num_samples-1)-trg_offsets[n],num_samples)
+                        f['c%i_trig_time'%channel][i+n] = trg_times[n]
                     
-            except (socket.error, struct.error) as e:
+            except Exception as e:
                 print('Error\n' + str(e))
                 scope.clear()
                 continue
@@ -115,7 +118,7 @@ if __name__ == '__main__':
     usage = "usage: %prog <filename/prefix> [-n] [-s]"
     parser = optparse.OptionParser(usage, version="%prog 0.1.0")
     parser.add_option("-i", type="str", dest="ip",
-                      help="IP address of the scope", default="127.0.0.0")
+                      help="IP address of the scope", default="127.0.0.1")
     parser.add_option("-n", type="int", dest="nevents",
                       help="number of events to capture in total", default=1000)
     parser.add_option("-s", type="int", dest="nsequence",
