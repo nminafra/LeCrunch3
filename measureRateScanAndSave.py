@@ -210,7 +210,7 @@ if __name__ == '__main__':
     f = open(dirname+"/"+options.outfile, "w")
     f.write('x\ty\trates\n')
 
-    #save details of scan as a dict in a txt file
+    #save details of scan as a dict in a json file
     d = {'nTrig':options.nevents,
          'xMaxIdx':xSteps-1,
          'yMaxIdx':ySteps-1}
