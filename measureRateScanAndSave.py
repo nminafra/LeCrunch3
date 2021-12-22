@@ -214,7 +214,7 @@ if __name__ == '__main__':
     d = {'nTrig':options.nevents,
          'xMaxIdx':xSteps-1,
          'yMaxIdx':ySteps-1}
-    json.dump(d, open(f"{dirname}/{dirname}_info.txt",'w'))
+    json.dump(d, open(f"{dirname}/{dirname}_info.json",'w'))
     
     try:
         for x in xes:
