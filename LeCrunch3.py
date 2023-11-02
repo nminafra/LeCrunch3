@@ -366,7 +366,7 @@ class LeCrunch3(object):
         if wavedesc['wave_array_2'] != 0:
             print(f'WARNING: waveform too long, ignoring {wavedesc["wave_array_2"]} samples!')
 
-        waveform = np.frombuffer(data.read(wave_array_count*(wavedesc['dtype'].itemsize)), wavedesc['dtype'], wave_array_count)
+        waveform = np.frombuffer(data.read(wave_array_count*(wavedesc['dtype'].itemsize)), wavedesc['dtype'], wave_array_count//wavedesc['dtype'].itemsize)
 
         return (wavedesc, trigger_times, trigger_offsets, waveform)
 
@@ -377,8 +377,8 @@ class LeCrunch3(object):
         containing the wave descriptor and a numpy array of the digitized 
         scope readout.
         ''' 
-        if channel not in range(1, 5):
-            raise Exception('channel must be in %s.' % str(range(1, 5)))
+        if channel not in range(1, 9):
+            raise Exception('channel must be in %s.' % str(range(1, 9)))
         self.send('c%s:wf? dat1' % str(channel))
         msg = self.recv()
         if not int(chr(msg[1])) == channel:
