@@ -35,15 +35,25 @@ import h5py
 import numpy as np
 from LeCrunch3 import LeCrunch3
 
-def fetchAndSaveFast(filename, nevents, nsequence, ip, timeout=1000):
+def fetchAndSaveFast(filename, nevents, nsequence, ip, timeout=1000, b16acq=True):
     '''
     Fetch and save waveform traces from the oscilloscope 
     with ADC values and with all info needed to reconstruct the waveforms
     It is faster than fetchAndSaveSimple but it requires a bit more code to analyze the files
     '''
+    startTime = time.time()
     scope = LeCrunch3(ip, timeout=timeout)
     scope.clear()
     scope.set_sequence_mode(nsequence)
+    if b16acq:
+        scopeSets = scope.get_settings() 
+
+        for k,v in scopeSets.items():
+            scopeSets[k] = v.decode()
+        scopeSets['COMM_FORMAT'] = 'CFMT DEF9,WORD,BIN'
+
+        scope.set_settings(scopeSets)
+
     channels = scope.get_channels()
     settings = scope.get_settings()
 
@@ -51,7 +61,7 @@ def fetchAndSaveFast(filename, nevents, nsequence, ip, timeout=1000):
         sequence_count = int(settings['SEQUENCE'].split(b',')[1])
     else:
         sequence_count = 1
-    print(sequence_count)
+    # print(sequence_count)
         
     if nsequence != sequence_count:
         print('Could not configure sequence mode properly')
@@ -68,7 +78,7 @@ def fetchAndSaveFast(filename, nevents, nsequence, ip, timeout=1000):
         wave_desc = scope.get_wavedesc(channel)
         current_dim[channel] = wave_desc['wave_array_count']//sequence_count
         f.create_dataset(f'c{channel}_samples', (nevents,current_dim[channel]), dtype=wave_desc['dtype'], maxshape=(nevents,None))
-        ## Save attributes in the file
+        ## Save  attributes in the file
         for key, value in wave_desc.items():
             try:
                 f["c%i_samples"%channel].attrs[key] = value
@@ -80,26 +90,29 @@ def fetchAndSaveFast(filename, nevents, nsequence, ip, timeout=1000):
         f.create_dataset("c%i_horiz_scale"%channel, (nevents,), dtype='f8')
         f.create_dataset("c%i_trig_offset"%channel, (nevents,), dtype='f8')
         f.create_dataset("c%i_trig_time"%channel, (nevents,), dtype='f8')
-        
+    f.create_dataset("seconds_from_start", (nevents,), dtype='f8')
+    
 
     try:
         i = 0
         while i < nevents:
-            print(f'\rfetching event: {i}')
+            print(f'\rSCOPE: fetching event: {i}')
             sys.stdout.flush()
             try:
+                f[f'seconds_from_start'][i] = float(time.time() - startTime)
                 scope.trigger()
                 for channel in channels:
                     wave_desc, trg_times, trg_offsets, wave_array = scope.get_waveform_all(channel)
                     num_samples = wave_desc['wave_array_count']//sequence_count
-                    if current_dim[channel] < num_samples:
-                        current_dim[channel] = num_samples
+                    num_samples_toSave = int(1*num_samples) ##TORemove
+                    if current_dim[channel] < num_samples_toSave:
+                        current_dim[channel] = num_samples_toSave
                         f[f'c{channel}_samples'].resize(current_dim[channel],1)
                     traces = wave_array.reshape(sequence_count, wave_array.size//sequence_count)
                     #necessary because h5py does not like indexing and this is the fastest (and man is it slow) way
                     scratch = np.zeros((current_dim[channel],),dtype=wave_array.dtype)
                     for n in range(0,sequence_count):
-                        scratch[0:num_samples] = traces[n] 
+                        scratch[0:num_samples] = traces[n][:num_samples_toSave] 
                         f[f'c{channel}_samples'][i+n] = scratch
                         f['c%i_vert_offset'%channel][i+n] = wave_desc['vertical_offset']
                         f['c%i_vert_scale'%channel][i+n] = wave_desc['vertical_gain']
@@ -111,12 +124,13 @@ def fetchAndSaveFast(filename, nevents, nsequence, ip, timeout=1000):
             except Exception as e:
                 print('Error\n' + str(e))
                 scope.clear()
+                scope.set_settings(scopeSets)
                 continue
             i += sequence_count
-    except KeyboardInterrupt:
-        print('\rUser interrupted fetch early')
+    except:
+        print('\rUser interrupted fetch early or something happened...')
     finally:
-        print('\r', )
+        print('Closing the file\r', )
         f.close()
         scope.clear()
         return i
