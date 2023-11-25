@@ -1,22 +1,53 @@
 # LeCrunch3
 A python3 tool to control a LeCroy scope and to acquire/process data
 
+## Usage
+LeCrunch3 adds some funcitionalities, like the possibility of saving easy to use HDF files:
+
+```
+import matplotlib.pyplot as plt
+import h5py
+
+f = h5py.File('testfile.h5', 'r')
+
+numOfSegments = f[f'c1_time'].shape[0]
+
+for i in range(numOfSegments):
+
+plt.plot(f[f'c1_time'][i], f[f'c1_samples'][i])
+```
+
+And more importantly, the acquisition of trigger times and offset.
+
+## Authors
+
 LeCrunch3 is based on LeCrunch2 by Benjamin Land: https://github.com/BenLand100/LeCrunch2
 LeCrunch2 is based on LeCrunch by Anthony LaTorre <tlatorre9@gmail.com>
 
-LeCrunch3 is a proting for python3 and adds some funcitionalities, like the possibility of saving easy to use h5 files:
 
+## Installation
 
-    import matplotlib.pyplot as plt
+### Manual
 
-    import h5py
+Install required packages, like `h5py` and `numpy` using your favorite package manager.
+Then clone the repository and in the directory where `fetchAndSaveFast.py` is located, run:
 
-    f = h5py.File('testfile.h5', 'r')
+```shell
+python3 fetchAndSaveFast.py --help
+```
 
-    numOfSegments = f[f'c1_time'].shape[0]
+### Poetry
 
-    for i in range(numOfSegments):
+If you have poetry installed, you can avoid installation of dependencies system-wide by running:
 
-        plt.plot(f[f'c1_time'][i], f[f'c1_samples'][i])
-    
-And more importantly, the acquisition of trigger times and offset
+```shell
+poetry install
+```
+
+System-wide installation of dependencies is nowadays considered bad practice, as it can lead to conflicts between different versions of the same package. Poetry creates a virtual environment for you, where all dependencies are installed. This project is configured to install virtual environment in the project directory (in `venv` directory).
+
+Then you can run the script using `poetry run` which will activate the virtual environment and run the script:
+
+```shell
+poetry run python3 fetchAndSaveFast.py --help
+```
