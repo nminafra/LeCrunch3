@@ -19,11 +19,14 @@ plt.plot(f[f'c1_time'][i], f[f'c1_samples'][i])
 
 And more importantly, the acquisition of trigger times and offset.
 
-## Authors
+### Data acqusition
 
-LeCrunch3 is based on LeCrunch2 by Benjamin Land: https://github.com/BenLand100/LeCrunch2
-LeCrunch2 is based on LeCrunch by Anthony LaTorre <tlatorre9@gmail.com>
+The comman below will connect to the scope available under IP address `10.10.111.78`, and collect 2 events, with 2 sequences in each.
+The output will be saved to `output.h5` file.
 
+```
+python .\fetchAndSaveFast.py output.h5 -i 10.10.111.78 -n 2 -s 2
+```
 
 ## Installation
 
@@ -51,3 +54,8 @@ Then you can run the script using `poetry run` which will activate the virtual e
 ```shell
 poetry run python3 fetchAndSaveFast.py --help
 ```
+
+## Authors
+
+LeCrunch3 is based on LeCrunch2 by Benjamin Land: https://github.com/BenLand100/LeCrunch2
+LeCrunch2 is based on LeCrunch by Anthony LaTorre <tlatorre9@gmail.com>

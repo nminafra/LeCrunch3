@@ -193,3 +193,6 @@ pyrightconfig.json
 .ionide
 
 # End of https://www.toptal.com/developers/gitignore/api/python,visualstudiocode
+
+# ignore HDF output files
+*.h5
