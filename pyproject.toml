@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "lecrunch3"
+version = "0.1.0"
+description = "A python3 tool to control a LeCroy scope and to acquire/process data"
+authors = ["LeCrunch3 developers"]
+license = "GNU General Public License v3.0"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.9"
+h5py = "^3.10.0"
+numpy = "^1.26.2"
+
+[tool.poetry.group.dev.dependencies]
+black = "^23.11.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
