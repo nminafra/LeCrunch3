@@ -44,7 +44,7 @@ If you have poetry installed, you can avoid installation of dependencies system-
 poetry install
 ```
 
-System-wide installation of dependencies is nowadays considered bad practice, as it can lead to conflicts between different versions of the same package. Poetry creates a virtual environment for you, where all dependencies are installed. This project is configured to install virtual environment in the project directory (in `venv` directory).
+System-wide installation of dependencies is nowadays considered bad practice, as it can lead to conflicts between different versions of the same package. Poetry creates a virtual environment for you, where all dependencies are installed. This project is configured to install virtual environment in a hidden `.venv` directory inside the project directory.
 
 Then you can run the script using `poetry run` which will activate the virtual environment and run the script:
 
