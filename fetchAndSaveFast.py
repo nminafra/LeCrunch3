@@ -26,6 +26,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
+import os
 import sys
 import time
 import h5py
@@ -33,10 +34,16 @@ import numpy as np
 from LeCrunch3 import LeCrunch3
 
 
-class CustomLogRecord(logging.LogRecord):
-    def __init__(self, *args, **kwargs):
-        super(CustomLogRecord, self).__init__(*args, **kwargs)
-        self.elapsed_time = kwargs.get("elapsed_time", 0.0)
+def get_size(file_path):
+    size_bytes = os.path.getsize(file_path)
+    size_units = ["B", "KB", "MB", "GB", "TB"]
+
+    i = 0
+    while size_bytes >= 1024 and i < len(size_units) - 1:
+        size_bytes /= 1024.0
+        i += 1
+
+    return "{:.2f} {}".format(size_bytes, size_units[i])
 
 
 def get_sequence_count(settings: dict) -> int:
@@ -199,6 +206,7 @@ def fetchAndSaveFast(
         logging.info("Starting to close the file")
         f.close()
         logging.info("File close, starting to clear scope")
+        print(f"Size on disk: {get_size(filename)}")
         scope.clear()
         logging.info("Scope cleared")
         return i
