@@ -120,10 +120,11 @@ def fetchAndSaveFast(
     print("Active channels: ", active_channels)
     for channel in active_channels:
         wave_desc = scope.get_wavedesc(channel)
-        current_dim[channel] = wave_desc["wave_array_count"] // sequence_count
+        datapoints_no = wave_desc["wave_array_count"]
+        current_dim[channel] = datapoints_no // sequence_count
         print(f"Channel {channel}:")
         print(
-            f"\t {sequence_count} (#seq) x {current_dim[channel]} (#samples) = {wave_desc['wave_array_count']} (#datapoints)",
+            f"\t {sequence_count} (#seq) x {current_dim[channel]} (#samples) = {datapoints_no} (#datapoints)",
             end="",
         )
         print(f" - {size_human_readable(wave_desc['wave_array_1'])}")
