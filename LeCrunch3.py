@@ -239,9 +239,7 @@ class LeCrunch3(object):
             header = b""
             while len(header) < 8:
                 header += self.sock.recv(8 - len(header))
-            operation, headerver, seqnum, spare, totalbytes = struct.unpack(
-                headerformat, header
-            )
+            operation, headerver, seqnum, spare, totalbytes = struct.unpack(headerformat, header)
             buffer = b""
             while len(buffer) < totalbytes:
                 buffer += self.sock.recv(totalbytes - len(buffer))
@@ -268,9 +266,7 @@ class LeCrunch3(object):
         """
         Captures the current settings of the scope as a dict of Command->Setting.
         """
-        logging.debug(
-            "Captures the current settings of the scope as a dict of Command->Setting."
-        )
+        logging.debug("Captures the current settings of the scope as a dict of Command->Setting.")
         settings = {}
         for command in setting_commands:
             self.send(command + "?")
@@ -304,9 +300,7 @@ class LeCrunch3(object):
         Arms the oscilliscope and instructs it to wait before processing
         further commands, i.e. nonblocking.
         """
-        logging.debug(
-            "Arms the oscilliscope and instructs it to wait before processing further commands"
-        )
+        logging.debug("Arms the oscilliscope and instructs it to wait before processing further commands")
         self.send("arm;wait")
 
     def set_sequence_mode(self, nsequence):
@@ -409,9 +403,7 @@ class LeCrunch3(object):
         # TODO: implement dat2 concat
         wave_array_count = wavedesc["wave_array_1"]
         if wavedesc["wave_array_2"] != 0:
-            print(
-                f'WARNING: waveform too long, ignoring {wavedesc["wave_array_2"]} samples!'
-            )
+            print(f'WARNING: waveform too long, ignoring {wavedesc["wave_array_2"]} samples!')
 
         waveform = np.frombuffer(
             data.read(wave_array_count * (wavedesc["dtype"].itemsize)),

@@ -143,7 +143,7 @@ def fetchAndSaveFast(
         while i < nevents:
             print(f"\rSCOPE: fetching event: {i}")
             logging.info(
-                "Event %d, time from start of acquisition %.3f seconds",
+                "Event %d, from start of acquisition %.3f seconds",
                 i,
                 time.time() - start_time,
             )
@@ -171,22 +171,16 @@ def fetchAndSaveFast(
                     if current_dim[channel] < num_samples_toSave:
                         current_dim[channel] = num_samples_toSave
                         f[f"c{channel}_samples"].resize(current_dim[channel], 1)
-                    traces = wave_array.reshape(
-                        sequence_count, wave_array.size // sequence_count
-                    )
+                    traces = wave_array.reshape(sequence_count, wave_array.size // sequence_count)
                     # necessary because h5py does not like indexing and this is the fastest (and man is it slow) way
                     scratch = np.zeros((current_dim[channel],), dtype=wave_array.dtype)
                     for n in range(sequence_count):
                         scratch[0:num_samples] = traces[n][:num_samples_toSave]
                         f[f"c{channel}_samples"][i + n] = scratch
-                        f[f"c{channel}_vert_offset"][i + n] = wave_desc[
-                            "vertical_offset"
-                        ]
+                        f[f"c{channel}_vert_offset"][i + n] = wave_desc["vertical_offset"]
                         f[f"c{channel}_vert_scale"][i + n] = wave_desc["vertical_gain"]
                         f[f"c{channel}_horiz_offset"][i + n] = wave_desc["horiz_offset"]
-                        f[f"c{channel}_horiz_scale"][i + n] = wave_desc[
-                            "horiz_interval"
-                        ]
+                        f[f"c{channel}_horiz_scale"][i + n] = wave_desc["horiz_interval"]
                         f[f"c{channel}_trig_offset"][i + n] = trg_offsets[n]
                         f[f"c{channel}_trig_time"][i + n] = trg_times[n]
 
