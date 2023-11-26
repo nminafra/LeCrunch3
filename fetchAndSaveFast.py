@@ -76,12 +76,7 @@ def setup_scope(scope, nsequence: int = 1, b16acq: bool = True) -> dict:
 
 
 def fetchAndSaveFast(
-    filename,
-    ip,
-    nevents: int = 1,
-    nsequence: int = 1,
-    timeout: float = 1000,
-    b16acq: bool = True,
+    filename, ip, nevents: int = 1, nsequence: int = 1, timeout: float = 1000, b16acq: bool = True, quiet: bool = False
 ) -> int:
     """
     Fetch and save waveform traces from the oscilloscope
@@ -141,13 +136,14 @@ def fetchAndSaveFast(
         i = 0
         start_time = time.time()
         while i < nevents:
-            print(f"\rSCOPE: fetching event: {i}")
+            if not quiet:
+                print(f"\rSCOPE: fetching event: {i}")
+                sys.stdout.flush()
             logging.info(
                 "Event %d, from start of acquisition %.3f seconds",
                 i,
                 time.time() - start_time,
             )
-            sys.stdout.flush()
             try:
                 f["seconds_from_start"][i] = float(time.time() - startTime)
                 scope.trigger()
@@ -181,8 +177,11 @@ def fetchAndSaveFast(
                         f[f"c{channel}_vert_scale"][i + n] = wave_desc["vertical_gain"]
                         f[f"c{channel}_horiz_offset"][i + n] = wave_desc["horiz_offset"]
                         f[f"c{channel}_horiz_scale"][i + n] = wave_desc["horiz_interval"]
-                        f[f"c{channel}_trig_offset"][i + n] = trg_offsets[n]
-                        f[f"c{channel}_trig_time"][i + n] = trg_times[n]
+                        # trigger offsets and trigger times may not be available in single sequence mode
+                        if len(trg_offsets) > 0:
+                            f[f"c{channel}_trig_offset"][i + n] = trg_offsets[n]
+                        if len(trg_times) > 0:
+                            f[f"c{channel}_trig_time"][i + n] = trg_times[n]
 
             except Exception as e:
                 print("Error\n" + str(e))
@@ -197,8 +196,11 @@ def fetchAndSaveFast(
         if i > 0:
             print(f"Completed {i} events in {elapsed:.3f} seconds.")
             print(f"Averaged {elapsed/i:.5f} seconds per acquisition.")
+        logging.info("Starting to close the file")
         f.close()
+        logging.info("File close, starting to clear scope")
         scope.clear()
+        logging.info("Scope cleared")
         return i
 
 
@@ -222,8 +224,5 @@ if __name__ == "__main__":
         nevents=options.nevents,
         nsequence=options.nsequence,
         b16acq=True,
+        quiet=options.quiet,
     )
-    # elapsed = time.time() - start_time
-    # if count > 0:
-    #     print(f"Completed {count} events in {elapsed:.3f} seconds.")
-    #     print(f"Averaged {elapsed/count:.5f} seconds per acquisition.")

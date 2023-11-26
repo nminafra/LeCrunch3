@@ -11,9 +11,7 @@ def parse_options(args: list[str]) -> tuple[optparse.Values, list[str]]:
 
     usage = "usage: %prog <filename/prefix> [-i] [-n] [-s]"
     parser = optparse.OptionParser(usage, version="%prog 0.1.0")
-    parser.add_option(
-        "-i", type="str", dest="ip", help="IP address of the scope", default="127.0.0.1"
-    )
+    parser.add_option("-i", type="str", dest="ip", help="IP address of the scope", default="127.0.0.1")
     parser.add_option(
         "-n",
         type="int",
@@ -42,7 +40,13 @@ def parse_options(args: list[str]) -> tuple[optparse.Values, list[str]]:
         help="increase verbosity (specify multiple times for more verbosity)",
         default=0,
     )
-
+    parser.add_option(
+        "-q",
+        action="count",
+        dest="quiet",
+        help="be quiet and do not print progress during data aquisition, suppress logging",
+        default=0,
+    )
     (options, args) = parser.parse_args(args=args)
 
     if len(args) < 1:
@@ -52,9 +56,10 @@ def parse_options(args: list[str]) -> tuple[optparse.Values, list[str]]:
         sys.exit("Arguments to -s or -n must be positive")
 
     if options.nevents % options.nsequence != 0:
-        sys.exit(
-            f"#events {options.nevents} must be a multiplicity of #sequences {options.nsequence}"
-        )
+        sys.exit(f"#events {options.nevents} must be a multiplicity of #sequences {options.nsequence}")
+
+    if options.quiet > 0 and options.verbosity > 0:
+        sys.exit("Cannot use quiet and verbose option at the same time, use only one of them")
 
     return options, args
 
@@ -68,9 +73,7 @@ def setup_logging(verbosity: int = 0):
         print("Setting log level to DEBUG")
         log_level = logging.DEBUG
 
-    logging.basicConfig(
-        level=log_level, format="%(asctime)s - %(levelname)s - %(message)s"
-    )
+    logging.basicConfig(level=log_level, format="%(asctime)s - %(levelname)s - %(message)s")
 
     start_time = time.time()
 
@@ -83,9 +86,7 @@ def setup_logging(verbosity: int = 0):
             record.elapsed_time = elapsed_time()
             return super(ElapsedTimeFormatter, self).format(record)
 
-    elapsed_formatter = ElapsedTimeFormatter(
-        "%(asctime)s - %(levelname)s - [%(elapsed_time).3f seconds] - %(message)s"
-    )
+    elapsed_formatter = ElapsedTimeFormatter("%(asctime)s - %(levelname)s - [%(elapsed_time).3f seconds] - %(message)s")
 
     # Set all StreamHandlers to WARNING level, deeper levels will go to files, as set below
     for handler in logging.getLogger().handlers:
