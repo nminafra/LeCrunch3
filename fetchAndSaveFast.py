@@ -34,8 +34,11 @@ import numpy as np
 from LeCrunch3 import LeCrunch3
 
 
-def get_size(file_path):
-    size_bytes = os.path.getsize(file_path)
+def size_human_readable(size_bytes: int) -> str:
+    """
+    Human readable size
+    """
+
     size_units = ["B", "KB", "MB", "GB", "TB"]
 
     i = 0
@@ -91,12 +94,13 @@ def fetchAndSaveFast(
     It is faster than fetchAndSaveSimple but it requires a bit more code to analyze the files
     """
     startTime = time.time()
-    print(f"Connecting to {ip} with timeout {timeout} s")
+    print(f"Connecting to {ip} with timeout {timeout} s... ", flush=True, end="")
     try:
         scope = LeCrunch3(ip, timeout=timeout)
-        print(f"Connected to {ip}")
+        print("connected !")
     except TimeoutError as e:
-        print("Could not connect to scope\n" + str(e))
+        print("could not connect to scope")
+        print(e)
         return 0
 
     settings = setup_scope(scope, nsequence, b16acq)
@@ -116,8 +120,21 @@ def fetchAndSaveFast(
     print("Active channels: ", active_channels)
     for channel in active_channels:
         wave_desc = scope.get_wavedesc(channel)
-        # wave_desc["wave_array_count"] is number of datapoints in all sequences in one event
         current_dim[channel] = wave_desc["wave_array_count"] // sequence_count
+        print(f"Channel {channel}:")
+        print(
+            f"\t {sequence_count} (#seq) x {current_dim[channel]} (#samples) = {wave_desc['wave_array_count']} (#datapoints)",
+            end="",
+        )
+        print(f" - {size_human_readable(wave_desc['wave_array_1'])}")
+        print(f"\t valid points {wave_desc['first_valid_pnt']} - {wave_desc['last_valid_pnt']}")
+        print(
+            f"\t horizontal: interval = {wave_desc['horiz_interval']} {wave_desc['horunit']}, offset = {wave_desc['horiz_offset']} {wave_desc['horunit']}"
+        )
+        print(
+            f"\t   vertical:     gain = {wave_desc['vertical_gain']} {wave_desc['vertunit']}, offset = {wave_desc['vertical_offset']} {wave_desc['vertunit']}"
+        )
+        print(f"\t   acquisition duration: {wave_desc['acq_duration']} sec")
         f.create_dataset(
             name=f"c{channel}_samples",
             shape=(nevents, current_dim[channel]),
@@ -144,8 +161,7 @@ def fetchAndSaveFast(
         start_time = time.time()
         while i < nevents:
             if not quiet:
-                print(f"\rSCOPE: fetching event: {i}")
-                sys.stdout.flush()
+                print(f"\rSCOPE: fetching event: {i}", flush=True)
             logging.info(
                 "Event %d, from start of acquisition %.3f seconds",
                 i,
@@ -202,7 +218,8 @@ def fetchAndSaveFast(
         logging.info("Starting to close the file")
         f.close()
         logging.info("File close, starting to clear scope")
-        print(f"Size on disk: {get_size(filename)}")
+        size_bytes = os.path.getsize(filename)
+        print(f"Size on disk: {size_human_readable(size_bytes)}")
         scope.clear()
         logging.info("Scope cleared")
         return i
