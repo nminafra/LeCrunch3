@@ -26,6 +26,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
+from math import log10
 import os
 import sys
 import time
@@ -49,6 +50,46 @@ def size_human_readable(size_bytes: int) -> str:
     return "{:.2f} {}".format(size_bytes, size_units[i])
 
 
+def get_optimal_prefix(number, tolerance=1e-10):
+    prefixes = {
+        24: "Y",
+        21: "Z",
+        18: "E",
+        15: "P",
+        12: "T",
+        9: "G",
+        6: "M",
+        3: "k",
+        0: "",
+        -3: "m",
+        -6: "µ",
+        -9: "n",
+        -12: "p",
+        -15: "f",
+        -18: "a",
+        -21: "z",
+        -24: "y",
+    }
+
+    # If the number is 0, return '0' with no prefix
+    if number == 0:
+        return "0"
+
+    # Calculate the exponent without rounding
+    exp_exact = log10(abs(number)) / 3 * 3
+
+    # Round up only if very close to the next integer
+    exp_rounded = exp_exact if abs(exp_exact % 3) > tolerance else round(exp_exact)
+
+    # Find the appropriate prefix for the given number
+    exp = int(exp_rounded)
+    prefix = prefixes.get(exp, "")
+
+    # Format the result with the number and the prefix
+    result = "{:.3f} {}".format(number / 10**exp, prefix)
+    return result
+
+
 def get_sequence_count(settings: dict) -> int:
     """
     Get the number of traces per aquisition from the settings dictionary
@@ -60,7 +101,7 @@ def get_sequence_count(settings: dict) -> int:
     return sequence_count
 
 
-def setup_scope(scope, nsequence: int = 1, b16acq: bool = True) -> dict:
+def setup_scope(scope, nsequence: int = 1, b16acq: bool = True, screen_off: bool = False) -> dict:
     """
     Set number of seqences and binary format for the scope
     """
@@ -72,10 +113,28 @@ def setup_scope(scope, nsequence: int = 1, b16acq: bool = True) -> dict:
         scopeSets = scope.get_settings()
         for k, v in scopeSets.items():
             scopeSets[k] = v.decode()
+        """
+        The COMM_FORMAT command selects the format the oscilloscope uses to send waveform data. The
+        available options allow the block format, the data type and the encoding mode to be modified from the
+        default settings.
+        Initial settings (after power-on) are: block format DEF9; data type WORD; encoding BIN
+        Data Type
+        BYTE transmits the waveform data as 8-bit signed integers (one byte).
+        WORD transmits the waveform data as 16-bit signed integers (two bytes).
+        Encoding
+        BIN specifies Binary encoding. This is the only type of waveform data encoding supported by Teledyne
+        LeCroy oscilloscopes.
+        """
         scopeSets["COMM_FORMAT"] = "CFMT DEF9,WORD,BIN"
+
         scope.set_settings(scopeSets)
         logging.info("Scope configured to 16bits mode")
-
+    if screen_off:
+        scope.send("DISP OFF")
+    # set time base
+    scope.send("TDIV 100US")
+    # set memory size
+    scope.send("MSIZ 50M")
     settings = scope.get_settings()
     sequence_count = get_sequence_count(settings)
     if nsequence != sequence_count:
@@ -83,6 +142,22 @@ def setup_scope(scope, nsequence: int = 1, b16acq: bool = True) -> dict:
 
     logging.info("Scope setting completed")
     return settings
+
+
+def teardown_scope(scope) -> dict:
+    scope.send("DISP ON")
+    scope.clear()
+    logging.info("Scope settings back to normal")
+
+
+def vert_horiz_summary(vert_offset: float, vert_gain: float, horiz_interval: float, horiz_offset: float):
+    time_offset_s = f"{get_optimal_prefix(horiz_offset)}s"
+    time_interval_s = f"{get_optimal_prefix(horiz_interval)}s"
+    time_freq_s = f"{get_optimal_prefix(1/horiz_interval)}Hz"
+    vert_gain_V = f"{get_optimal_prefix(vert_gain)}V"
+    vert_offset_V = f"{get_optimal_prefix(vert_offset)}V"
+    print(f"\t horizontal: interval {time_interval_s}, freq {time_freq_s}, offset {time_offset_s}")
+    print(f"\t   vertical: gain {vert_gain_V}, offset {vert_offset_V}")
 
 
 def fetchAndSaveFast(
@@ -122,20 +197,6 @@ def fetchAndSaveFast(
         wave_desc = scope.get_wavedesc(channel)
         datapoints_no = wave_desc["wave_array_count"]
         current_dim[channel] = datapoints_no // sequence_count
-        print(f"Channel {channel}:")
-        print(
-            f"\t {sequence_count} (#seq) x {current_dim[channel]} (#samples) = {datapoints_no} (#datapoints)",
-            end="",
-        )
-        print(f" - {size_human_readable(wave_desc['wave_array_1'])}")
-        print(f"\t valid points {wave_desc['first_valid_pnt']} - {wave_desc['last_valid_pnt']}")
-        print(
-            f"\t horizontal: interval = {wave_desc['horiz_interval']} {wave_desc['horunit']}, offset = {wave_desc['horiz_offset']} {wave_desc['horunit']}"
-        )
-        print(
-            f"\t   vertical:     gain = {wave_desc['vertical_gain']} {wave_desc['vertunit']}, offset = {wave_desc['vertical_offset']} {wave_desc['vertunit']}"
-        )
-        print(f"\t   acquisition duration: {wave_desc['acq_duration']} sec")
         f.create_dataset(
             name=f"c{channel}_samples",
             shape=(nevents, current_dim[channel]),
@@ -145,6 +206,7 @@ def fetchAndSaveFast(
         # Save attributes of each channel in the file
         for key, value in wave_desc.items():
             try:
+                logging.info("Setting key %s and value %s", key, value)
                 f[f"c{channel}_samples"].attrs[key] = value
             except ValueError:
                 pass
@@ -180,6 +242,7 @@ def fetchAndSaveFast(
                         trg_offsets,
                         wave_array,
                     ) = scope.get_waveform_all(channel)
+
                     logging.info("Channel %d data ready", channel)
                     num_samples = wave_desc["wave_array_count"] // sequence_count
                     num_samples_toSave = int(1 * num_samples)  ##TORemove
@@ -216,12 +279,30 @@ def fetchAndSaveFast(
         if i > 0:
             print(f"Completed {i} events in {elapsed:.3f} seconds.")
             print(f"Averaged {elapsed/i:.5f} seconds per acquisition.")
+            for channel in active_channels:
+                print(f"Channel {channel}:")
+                datapoints_no = f[f"c{channel}_samples"].attrs["wave_array_count"]
+                no_samples = datapoints_no // nsequence
+                size_bytes = f[f"c{channel}_samples"].attrs["wave_array_1"]
+                print(
+                    f"\t {nsequence} (#seq) x {no_samples} (#samples) = {datapoints_no} (#datapoints)",
+                    end="",
+                )
+                print(f" - {size_human_readable(size_bytes)}")
+                sequence_length_sec = no_samples * f[f"c{channel}_horiz_scale"][-1]
+                print(f"\t sequence length {get_optimal_prefix(sequence_length_sec)}s")
+                vert_horiz_summary(
+                    horiz_offset=f[f"c{channel}_horiz_offset"][-1],
+                    horiz_interval=f[f"c{channel}_horiz_scale"][-1],
+                    vert_offset=f[f"c{channel}_vert_offset"][-1],
+                    vert_gain=f[f"c{channel}_vert_scale"][-1],
+                )
         logging.info("Starting to close the file")
         f.close()
         logging.info("File close, starting to clear scope")
         size_bytes = os.path.getsize(filename)
         print(f"Size on disk: {size_human_readable(size_bytes)}")
-        scope.clear()
+        teardown_scope(scope=scope)
         logging.info("Scope cleared")
         return i
 

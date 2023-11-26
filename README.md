@@ -74,6 +74,10 @@ Then you can run the script using `poetry run` which will activate the virtual e
 poetry run python3 fetchAndSaveFast.py --help
 ```
 
+## Resources
+
+Good manual of LeCroy scopes can be found at https://cdn.teledynelecroy.com/files/manuals/maui-remote-control-and-automation-manual.pdf
+
 ## Authors
 
 LeCrunch3 is based on LeCrunch2 by Benjamin Land: https://github.com/BenLand100/LeCrunch2
