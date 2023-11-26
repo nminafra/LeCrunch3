@@ -156,20 +156,15 @@ def fetchAndSaveFast(
                 scope.trigger()
                 logging.info("Acquiring data for event %d", i)
                 for channel in active_channels:
+                    logging.info("Asking scope for channel %d data", channel)
                     (
                         wave_desc,
                         trg_times,
                         trg_offsets,
                         wave_array,
                     ) = scope.get_waveform_all(channel)
+                    logging.info("Channel %d data ready", channel)
                     num_samples = wave_desc["wave_array_count"] // sequence_count
-                    logging.debug(
-                        "wave_array_count %d, sequence_count %d, number of samples %d",
-                        wave_desc["wave_array_count"],
-                        sequence_count,
-                        num_samples,
-                    )
-                    logging.debug("trg_times len = %d", len(trg_times))
                     num_samples_toSave = int(1 * num_samples)  ##TORemove
                     if current_dim[channel] < num_samples_toSave:
                         current_dim[channel] = num_samples_toSave
@@ -189,6 +184,7 @@ def fetchAndSaveFast(
                             f[f"c{channel}_trig_offset"][i + n] = trg_offsets[n]
                         if len(trg_times) > 0:
                             f[f"c{channel}_trig_time"][i + n] = trg_times[n]
+                    logging.info("Channel %d data packed in HDF", channel)
 
             except Exception as e:
                 print("Error\n" + str(e))

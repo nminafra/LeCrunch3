@@ -31,16 +31,21 @@ python .\fetchAndSaveFast.py output -i 10.10.111.78 -n 2 -s 2
 To enable verbose printout, which include `INFO` level logs, use single verbosity flag:
 
 ```
-python .\fetchAndSaveFast.py output -i 10.10.111.78 -n 2 -s 2
+python .\fetchAndSaveFast.py output -i 10.10.111.78 -n 2 -s 2 -v
 ```
 
 Even more verbose printout, including `DEBUG` level logs (like all the commands send to scope), can be enabled with double verbosity flag:
 
 ```
-python .\fetchAndSaveFast.py output -i 10.10.111.78 -n 2 -s 2
+python .\fetchAndSaveFast.py output -i 10.10.111.78 -n 2 -s 2 -vv
 ```
 
 The logs will be written (appended) to the `info.log` and `debug.log` files. All lines include precise date and time (including time since start of the program).
+
+To suppres any printout during data acquisition stage add `-q` flag. This should speedout readout a bit:
+```
+python .\fetchAndSaveFast.py output -i 10.10.111.78 -n 2 -s 2 -q
+```
 
 ## Installation
 
