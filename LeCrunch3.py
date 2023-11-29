@@ -235,18 +235,21 @@ class LeCrunch3(object):
         """
         logging.debug("Return a message from the scope.")
         reply = b""
+
         while True:
             header = b""
             while len(header) < 8:
                 header += self.sock.recv(8 - len(header))
             operation, headerver, seqnum, spare, totalbytes = struct.unpack(headerformat, header)
             buffer = b""
+            logging.debug("Header: total %d bytes", totalbytes)
             while len(buffer) < totalbytes:
+                logging.debug("Receiving %d bytes", totalbytes - len(buffer))
                 buffer += self.sock.recv(totalbytes - len(buffer))
             reply += buffer
             if operation % 2:
                 break
-        logging.debug("Buffer full")
+        logging.debug("Message received")
         return reply
 
     def check_last_command(self):
