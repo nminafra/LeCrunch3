@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools >= 61.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "LeCrunch3"
+version = "3.0.3"
+description = "A Python tool to control a LeCroy scope and to acquire/process data"
+readme = "README.md"
+authors = [
+    { name = "Anthony LaTorre", email = "tlatorre9@gmail.com" },
+    { name = "Benjamin Land", email = "benland100@gmail.com" },
+    { name = "Nicola Minafra", email = "nicola@cern.ch" }
+]
+license = { file = "LICENSE" }
+classifiers = [
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Information Analysis"
+]
+keywords = ["lecroy", "oscilloscope", "waveform"]
+dependencies = [
+    "numpy",
+]
+requires-python = ">=3.1"
+
+[project.optional-dependencies]
+dev = ["black", "bumpver", "isort", "pip-tools", "pytest"]
+
+[project.urls]
+Homepage = "https://github.com/nminafra/LeCrunch3"

@@ -3,13 +3,13 @@
 #
 # based on
 #
-# LeCrunch2 
+# LeCrunch2
 # Copyright (C) 2014 Benjamin Land
 #
 # based on
 #
 # LeCrunch
-# Copyright (C) 2010 Anthony LaTorre 
+# Copyright (C) 2010 Anthony LaTorre
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -71,7 +71,7 @@ class TimeStamp:
 class UnitDefinition:
     length = 48
     string = 'unit_definition'
-    
+
 # all commands to be querried as scope settings
 setting_commands = ['TIME_DIV', 'COMM_FORMAT', 'COMM_HEADER', 'COMM_ORDER'] + \
     ['TRIG_DELAY', 'TRIG_SELECT', 'TRIG_MODE', 'TRIG_PATTERN', 'SEQUENCE'] + \
@@ -175,7 +175,7 @@ class LeCrunch3(object):
 
     def __del__(self):
         self.sock.close()
-    
+
     def clear(self, timeout=0.5):
         '''
         Clear any bytes in the oscilloscope's output queue by receiving
@@ -207,12 +207,18 @@ class LeCrunch3(object):
         while True:
             header = b''
             while len(header) < 8:
-                header += self.sock.recv(8 - len(header))
+                try:
+                    header += self.sock.recv(8 - len(header))
+                except socket.timeout:
+                    continue
             operation, headerver, seqnum, spare, totalbytes = \
                 struct.unpack(headerformat, header)
             buffer = b''
             while len(buffer) < totalbytes:
-                buffer += self.sock.recv(totalbytes - len(buffer))
+                try:
+                    buffer += self.sock.recv(totalbytes - len(buffer))
+                except socket.timeout:
+                    continue
             reply += buffer
             if operation % 2:
                 break
@@ -229,7 +235,7 @@ class LeCrunch3(object):
         if err in errors:
             self.sock.close()
             raise Exception(errors[err])
-        
+
     def get_settings(self):
         '''
         Captures the current settings of the scope as a dict of Command->Setting.
@@ -266,7 +272,7 @@ class LeCrunch3(object):
         further commands, i.e. nonblocking.
         '''
         self.send('arm;wait')
-        
+
     def set_sequence_mode(self, nsequence):
         '''
         Sets the scope to use sequence mode for aquisition.
@@ -286,9 +292,9 @@ class LeCrunch3(object):
             startpos = searchResult.start()
         else:
             startpos = 22
-        
+
         wavedesc = {}
-        
+
         # check endian
         data.seek(startpos + 34)
         if struct.unpack('<'+Enum.packfmt, data.read(Enum.length)) == 0:
@@ -321,7 +327,7 @@ class LeCrunch3(object):
 
         return wavedesc, data.tell()
 
-    
+
     def get_wavedesc(self, channel):
         '''
         Requests the wave descriptor for `channel` from the scope. Returns it in
@@ -359,7 +365,7 @@ class LeCrunch3(object):
         for i in range(trigger_count):
             trigger_times[i] = np.frombuffer(data.read(typeSize), 'f8', 1)
             trigger_offsets[i] = np.frombuffer(data.read(typeSize), 'f8', 1)
-        
+
         # Read waveform
         # TODO: implement dat2 concat
         wave_array_count = wavedesc['wave_array_1']
@@ -374,9 +380,9 @@ class LeCrunch3(object):
     def get_waveform(self, channel):
         '''
         Capture the raw data for `channel` from the scope and return a tuple
-        containing the wave descriptor and a numpy array of the digitized 
+        containing the wave descriptor and a numpy array of the digitized
         scope readout.
-        ''' 
+        '''
         if channel not in range(1, 9):
             raise Exception('channel must be in %s.' % str(range(1, 9)))
         self.send('c%s:wf? dat1' % str(channel))
